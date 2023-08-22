@@ -7,7 +7,7 @@ from captum.attr import IntegratedGradients
 
 class NubilumIntegratedGradients(IntegratedGradients):
     """
-    Saliency implementation dedicated to point cloud
+    Integrated Gradients implementation dedicated to point cloud
     """
     def __init__(self, forward_func: Callable[..., Any]) -> None:
         super().__init__(forward_func)
