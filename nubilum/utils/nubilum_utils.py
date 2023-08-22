@@ -16,8 +16,7 @@ import k3d
 Custom Colorscales
 """
 
-# Plotly:
-
+# Plotly Custom Colorscale for test
 plotly_red_custom_colorscale = [
             [0, 'seashell'],        # Lightest color for smallest value (usually 0)
             [0.25, 'lightcoral'],   # Lighter color for small values
@@ -26,7 +25,7 @@ plotly_red_custom_colorscale = [
             [1, 'crimson']          # Darkest color for highest value
         ]
 
-# K3D:
+# K3D Custom Colorscale for test:
 # These color scales structure describe a list with one or more of the following pattern:
 # A number from the interval [0, 1], describing a part from the scale,
 # followed by the rgb color value in that part of the scale
@@ -50,6 +49,13 @@ k3d_red_custom_colorscale.extend([0.8334, 0.36, 0.0, 0.0])
 k3d_red_custom_colorscale.extend([1.0, 0.36, 0.0, 0.0])
 
 def create_k3d_category_20_discrete_map():
+    """
+    Creates a similar color scale to the discrete category 20, presented in matplotlib.
+    Unfortunately, K3D doesn't support discrete color scales.
+
+    Returns:
+        A color scale to be used in some plots with numerical data.
+    """
     N = 20
     colormap = pyplot.get_cmap(name='tab20', lut=None)
     colormap.colors
@@ -64,15 +70,15 @@ def create_k3d_category_20_discrete_map():
     return colorscale
     
 
-def check_tensor_shapes(tensors):
+def check_tensor_shapes(tensors) -> bool:
     """Checks if the tensors inside a iterable object, like a list or tuple,
     have the same shape
 
     Args:
-        tensors (_type_): Iterable object containing tensors.
+        tensors: Iterable object containing tensors.
 
     Returns:
-        _type_: True if tensors have the same shape, False otherwise.
+        bool: True if tensors have the same shape, False otherwise.
     """
     reference_shape = tensors[0].shape
 
@@ -83,7 +89,8 @@ def check_tensor_shapes(tensors):
     return True
 
 def show_poi(poi_index: int, coords: Tensor) -> None:
-        """Shows the point cloud with the point of interest in evidence
+        """
+        Shows the point cloud with the point of interest in evidence
 
         Args:
             poi_index (int): Index of the point of interest
@@ -191,7 +198,8 @@ def create_baseline_point_cloud(input_coords: Tensor) -> Tuple[Tensor]:
 
 
 def show_point_cloud(coords: Tensor, colors: Tensor, size: float = 0.1) -> None:
-    """Plots the Point Cloud.
+    """
+    Plots the Point Cloud using K3D plot library.
 
     Args:
         coords (Tensor): Coordinates of the points, in the shape (N, 3)
@@ -207,7 +215,11 @@ def show_point_cloud(coords: Tensor, colors: Tensor, size: float = 0.1) -> None:
     plot.display()
 
 def show_point_cloud_classification_k3d(coords: Tensor, classifications: Tensor, size: float = 0.1) -> None:
-    """Plots the classficiation of each point
+    """
+    Plots the classfication of each point using K3D.
+    
+    It's not capable to hold extra information, but it has a better performance than show_point_cloud_classification_plotly.
+    Recomended to use when plotly's performance spoils the 3D interaction.
     
     Args:
         coords (Tensor): Coordinates of the points, in the shape (N, 3)
@@ -226,10 +238,17 @@ def show_point_cloud_classification_k3d(coords: Tensor, classifications: Tensor,
     plot.display()
 
 def show_point_cloud_classification_plotly(coords: Tensor, classifications: Tensor, instance_labels: Tensor = None, classes_dict: dict = None, size: float = 0.1) -> None:
-    """Plots the classficiation of each point
-    
+    """
+    Plots the classficiation of each point using Plotly.
+    It can hold extra information such as instance labels and predictions meanings.
+
     Args:
         coords (Tensor): Coordinates of the points, in the shape (N, 3)
+        classifications (Tensor): The predictions indices for each point
+        instance_labels (Tensor, optional): Object instance labels for each point. The order of the points must be the same as the coordinates and classifications.
+        Defaults to None.
+        classes_dict (dict, optional): Dictionary containing the meaning of each prediction index. Defaults to None.
+        size (float, optional): Points sizes in the plot. Defaults to 0.1.
     """
     np_coords = coords.cpu().detach().numpy()
     np_class = classifications.cpu().detach().numpy().astype(np.int)
@@ -258,14 +277,16 @@ def show_point_cloud_classification_plotly(coords: Tensor, classifications: Tens
     )
     fig.show()
     
-def explain_plotly(attributes: Tensor, coords: Tensor, color_scale: str = 'Viridis') -> None:
+def explain_plotly(attributes: Tensor, coords: Tensor, template_name: str = 'simple_white') -> None:
     """
-    Plots the point cloud with its attributes values
+    Plots the point cloud with its attributes values using Plotly.
+    Useful for an thorough analysis of the points attribute values, but it has a poor interaction
+    and scene understanding thanks to Plotly's point rendering.
 
     Args:
         attributes (TensorOrTupleOfTensorsGeneric): Attributes for each point.
         coords (Tensor): Coordinates of each point.
-        color_scale (str, optional): The color scale to be used for the plot
+        template_name (str, optional): The template style to be used for the plot. Defaults to 'simple_white'.
     """
     
     np_coords = coords.detach().cpu().numpy()
@@ -283,7 +304,10 @@ def explain_plotly(attributes: Tensor, coords: Tensor, color_scale: str = 'Virid
     
         
 def explain_k3d(attributes: Tensor, coords: Tensor, attribute_name = None) -> None:
-    """_summary_
+    """
+    Plots the point cloud with its attributes values using K3D.
+    It doesn't offer the exactly value of the attributes but its performance and scene understanding
+    are better than Plotly's explanation.
 
     Args:
         attributes (TensorOrTupleOfTensorsGeneric): Attributes for each point.
