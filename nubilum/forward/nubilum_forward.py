@@ -72,7 +72,7 @@ class PointWrappedModel(torch.nn.Module):
         Args:
             point_coords (Tensor): Model's Input Feature. Tensor containing the points coordinates.
             point_colors (Tensor): Model's Input Feature. Tensor containing the points colors.
-            point_of_interest (int): Additional forward argument. The instance label to be verified.
+            point_of_interest (int): Additional forward argument. The point to be verified.
             output_scores_key_name (str, optional): Additional forward argument. Indicates the key for the semantic predictions scores if the output is a dict.
             Defaults to None if the Output is already a tensor with the semantic predictions.
 
