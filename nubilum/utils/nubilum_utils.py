@@ -12,6 +12,10 @@ import plotly.express as px
 
 import k3d
 
+__all__ = ['plotly_red_custom_colorscale', 'k3d_red_custom_colorscale', 'create_k3d_category_20_discrete_map',
+            'check_tensor_shapes', 'show_poi', 'sum_point_attributes', 'create_baseline_point_cloud', 'show_point_cloud',
+            'show_point_cloud_classification_k3d', 'show_point_cloud_classification_plotly', 'explain_plotly', 'explain_k3d']
+
 """
 Custom Colorscales
 """

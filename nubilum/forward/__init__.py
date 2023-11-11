@@ -1,3 +1,3 @@
 #!/usr/bin/env python3
 
-from . import nubilum_forward
+from .nubilum_forward import PointWrappedModel, InstanceWrappedModel, SummarizedWrappedModel
