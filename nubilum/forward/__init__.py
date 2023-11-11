@@ -1,3 +1,3 @@
 #!/usr/bin/env python3
 
-from .nubilum_forward import *
+from . import nubilum_forward
