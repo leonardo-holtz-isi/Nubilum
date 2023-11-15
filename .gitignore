@@ -4,3 +4,5 @@ docs
 .installed.cfg
 *.egg
 *__pycache__
+*.tar.gz
+*.whl

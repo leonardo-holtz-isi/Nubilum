@@ -263,7 +263,7 @@ def show_point_cloud_classification_k3d(coords: Tensor, classifications: Tensor,
 
 def show_point_cloud_classification_plotly(coords: Tensor, classifications: Tensor,
                                            instance_labels: Tensor = None,
-                                           classes_dict: dict = None, size: float = 0.1) -> None:
+                                           classes_dict: dict = None, size: float = 0.5) -> None:
     """
     Plots the classficiation of each point using Plotly.
     It can hold extra information such as instance labels and predictions meanings.
@@ -301,6 +301,13 @@ def show_point_cloud_classification_plotly(coords: Tensor, classifications: Tens
                         color="Class",
                         opacity=1.0,
                         hover_data=["Class", "Instance_Index", "Point_Num"])
+
+    # Change size directly through here to avoid white outlines in the points
+    for data in fig.data:
+        data['marker']['size'] = size
+    # The size change must not modify the legend
+    fig.update_layout(legend= {'itemsizing': 'constant'})
+
     fig.show()
 
 
