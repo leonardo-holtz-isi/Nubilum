@@ -6,3 +6,5 @@ docs
 *__pycache__
 *.tar.gz
 *.whl
+build
+dist/

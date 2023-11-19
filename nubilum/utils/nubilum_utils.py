@@ -213,6 +213,7 @@ def create_baseline_point_cloud(input_coords: Tensor) -> Tuple[Tensor]:
 
     return (baseline_coords, baseline_colors)
 
+# Plot functions
 
 def show_point_cloud(coords: Tensor, colors: Tensor, size: float = 0.1) -> None:
     """
@@ -307,12 +308,14 @@ def show_point_cloud_classification_plotly(coords: Tensor, classifications: Tens
         data['marker']['size'] = size
     # The size change must not modify the legend
     fig.update_layout(legend= {'itemsizing': 'constant'})
-
+    # Ensure that the rendering will be with the correct aspect (not flattened)
+    fig.update_layout(scene_aspectmode='data')
     fig.show()
 
 
 def explain_plotly(attributes: Tensor, coords: Tensor,
-                   template_name: str = 'simple_white') -> None:
+                   template_name: str = 'simple_white',
+                   size: float = 1.5) -> None:
     """
     Plots the point cloud with its attributes values using Plotly.
     Useful for an thorough analysis of the points attribute values, but it has a poor interaction
@@ -323,6 +326,7 @@ def explain_plotly(attributes: Tensor, coords: Tensor,
         coords (Tensor): Coordinates of each point.
         template_name (str, optional): The template style to be used for the plot.
         Defaults to 'simple_white'.
+        size (float, optional): Size of the points to be rendered.
     """
 
     np_coords = coords.detach().cpu().numpy()
@@ -336,10 +340,18 @@ def explain_plotly(attributes: Tensor, coords: Tensor,
                         range_color=[np.min(np_attr), np.max(np_attr)],
                         template='simple_white')
 
+    for data in fig.data:
+        data['marker']['size'] = size
+
+    # The size change must not modify the legend
+    fig.update_layout(legend= {'itemsizing': 'constant'})
+    # Ensure that the rendering will be with the correct aspect (not flattened)
+    fig.update_layout(scene_aspectmode='data')
+
     fig.show()
 
 
-def explain_k3d(attributes: Tensor, coords: Tensor, attribute_name=None) -> None:
+def explain_k3d(attributes: Tensor, coords: Tensor, attribute_name=None, size: float = 0.05) -> None:
     """
     Plots the point cloud with its attributes values using K3D.
     It doesn't offer the exactly value of the attributes but its performance and scene
@@ -349,6 +361,7 @@ def explain_k3d(attributes: Tensor, coords: Tensor, attribute_name=None) -> None
         attributes (TensorOrTupleOfTensorsGeneric): Attributes for each point.
         coords (Tensor): Coordinates of each point.
         attribute_name (str, optional): Name of the point data in the plot. Defaults to None.
+        size (float, optional): Size of the points to be rendered.
     """
 
     if attribute_name is None:
@@ -356,19 +369,13 @@ def explain_k3d(attributes: Tensor, coords: Tensor, attribute_name=None) -> None
 
     fig = k3d.plot(grid_visible=False)
 
-    min_size = 0.07
-    max_size = 0.1
-
     np_attr = attributes.detach().cpu().numpy()
-
-    sizes = (np_attr - np.min(np_attr)) / (np.max(np_attr) - np.min(np_attr)) * \
-            (max_size - min_size) + min_size
 
     fig += k3d.points(positions=coords,
                       shader='3d',
                       color_map=k3d.paraview_color_maps.Viridis_matplotlib,
                       attribute=np_attr,
                       color_range=[np.min(np_attr), np.max(np_attr)],
-                      point_sizes=sizes,
+                      point_size=size,
                       name=attribute_name)
     fig.display()
