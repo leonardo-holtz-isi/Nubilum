@@ -9,6 +9,7 @@ from captum._utils.typing import TensorOrTupleOfTensorsGeneric
 from k3d.colormaps import matplotlib_color_maps
 from matplotlib import pyplot
 import plotly.express as px
+import math
 
 import k3d
 
@@ -189,7 +190,7 @@ def create_baseline_point_cloud(input_coords: Tensor) -> Tuple[Tensor]:
     baseline_colors = torch.zeros(n_points, 3, requires_grad=True)
 
     # Defining grids for the volume
-    grid_size = int(round(n_points ** (1 / 3.0)))
+    grid_size = int(math.floor(n_points ** (1 / 3.0)))
 
     x_grid = np.linspace(x_min, x_max, grid_size)
     y_grid = np.linspace(y_min, y_max, grid_size)
@@ -209,7 +210,7 @@ def create_baseline_point_cloud(input_coords: Tensor) -> Tuple[Tensor]:
                                           size=(remaining_points, 3))
         points_np = np.concatenate((points_np, random_points), axis=0)
 
-    baseline_coords = torch.tensor(points_np, requires_grad=True)
+    baseline_coords = torch.tensor(points_np, dtype=torch.float32, requires_grad=True)
 
     return (baseline_coords, baseline_colors)
 
@@ -279,7 +280,7 @@ def show_point_cloud_classification_plotly(coords: Tensor, classifications: Tens
         Defaults to None.
         size (float, optional): Points sizes in the plot. Defaults to 0.1.
     """
-    size
+
     np_coords = coords.cpu().detach().numpy()
     np_class = classifications.cpu().detach().numpy().astype(np.int)
 
@@ -314,6 +315,7 @@ def show_point_cloud_classification_plotly(coords: Tensor, classifications: Tens
 
 
 def explain_plotly(attributes: Tensor, coords: Tensor,
+                   original_attributes: Tensor = None,
                    template_name: str = 'simple_white',
                    size: float = 1.5) -> None:
     """
@@ -332,13 +334,27 @@ def explain_plotly(attributes: Tensor, coords: Tensor,
     np_coords = coords.detach().cpu().numpy()
 
     np_attr = attributes.detach().cpu().numpy()
-    # normalized_attr = (np_attr - np.min(np_attr)) / (np.max(np_attr) - np.min(np_attr))
+    if original_attributes is not None:
+        np_orig_attr = original_attributes.detach().cpu().numpy()
+    else:
+        np_orig_attr = None
 
-    fig = px.scatter_3d(x=np_coords[:, 0], y=np_coords[:, 1], z=np_coords[:, 2],
-                        color=np_attr,
+    hover = dict(X=np_coords[:, 0],
+                 Y=np_coords[:, 1],
+                 Z=np_coords[:, 2],
+                 Attr=np_attr,
+                 Original_Attr=np_orig_attr,
+                 Point_Num=[i for i in range(len(np_attr))])
+
+    hover_df = pd.DataFrame(hover)
+
+    fig = px.scatter_3d(data_frame=hover_df,
+                        x="X", y="Y", z="Z",
+                        color="Attr",
                         opacity=1.0,
                         range_color=[np.min(np_attr), np.max(np_attr)],
-                        template='simple_white')
+                        template='simple_white',
+                        hover_data=["Attr", "Original_Attr", "Point_Num"])
 
     for data in fig.data:
         data['marker']['size'] = size
