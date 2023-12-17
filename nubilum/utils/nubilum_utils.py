@@ -21,9 +21,9 @@ import k3d
 __all__ = ['plotly_red_custom_colorscale', 'k3d_red_custom_colorscale',
            'create_k3d_category_20_discrete_map',
            'check_tensor_shapes', 'show_poi', 'sum_point_attributions',
-           'create_baseline_point_cloud', 'show_point_cloud',
-           'show_point_cloud_classification_k3d', 'show_point_cloud_classification_plotly',
-           'explain_plotly', 'explain_k3d']
+           'create_baseline_point_cloud', 'log_scale_attributions', 'log_scale_attr_zero_mask',
+           'join_attributions', 'show_point_cloud', 'show_point_cloud_classification_k3d',
+           'show_point_cloud_classification_plotly', 'explain_plotly', 'explain_k3d']
 
 """
 Custom Colorscales
@@ -155,7 +155,8 @@ def sum_point_attributions(attributions: TensorOrTupleOfTensorsGeneric,
         Defaults to -1, the last dimension.
 
     Returns:
-        `attributions_sum` (Tensor): Sum of all tensors element-wise and with the last dimension added.
+        `attributions_sum` (Tensor): Sum of all tensors element-wise and with the last
+        dimension added.
     """
 
     if not isinstance(attributions, TensorOrTupleOfTensorsGeneric):
@@ -495,7 +496,7 @@ def show_point_cloud_classification_plotly(np_coords: np.array, np_class: np.arr
         hover_data_names = hover_data_names + list(additional_hover_info.keys())
 
     if (instance_labels is not None):
-        instance_labels = instance_labels.cpu().detach().numpy().astype(np.int)
+        instance_labels = instance_labels.astype(np.int)
         hover["Instance_Index"] = instance_labels
         hover_data_names.append("Instance_Index")
 
@@ -539,8 +540,8 @@ def show_point_cloud_classification_plotly(np_coords: np.array, np_class: np.arr
     fig.show()
 
 
-def explain_plotly(attributions: Tensor, coords: Tensor,
-                   original_attributions: Tensor = None,
+def explain_plotly(np_attr: np.array, np_coords: np.array,
+                   np_orig_attr: np.array = None,
                    template_name: str = 'simple_white',
                    size: float = 1.5) -> None:
     """
@@ -549,27 +550,51 @@ def explain_plotly(attributions: Tensor, coords: Tensor,
     and scene understanding thanks to Plotly's point rendering.
 
     Args:
-        attributions (TensorOrTupleOfTensorsGeneric): attributions for each point.
-        coords (Tensor): Coordinates of each point.
-        template_name (str, optional): The template style to be used for the plot.
+        `np_attr` (numpy.array): Attributions for each point.
+
+        `np_coords` (numpy.array): Coordinates of each point.
+        
+        `np_orig_attr` (numpy.array): Original attributions for each point, useful if modifications
+        were made into them, but is desirable to have them in the hover information.
+
+        `template_name` (str, optional): The template style to be used for the plot.
         Defaults to 'simple_white'.
-        size (float, optional): Size of the points to be rendered.
+        
+        `size` (float, optional): Size of the points to be rendered.
     """
 
-    np_coords = coords.detach().cpu().numpy()
+    # Types and shapes verifications
+    if not isinstance(np_attr, np.array):
+        raise TypeError("The points attributions must be in numpy array format.")
+    if not isinstance(np_coords, np.array):
+        raise TypeError("The points coordinates must be in numpy array format.")
+    if np_coords.shape[1] != 3:
+        raise ValueError("The points coordinates must in shape (X,3), where the three values \
+            correspond to the x, y and z coordinates of each point.")
+    if np_coords.shape[0] != np_attr.shape[0]:
+        raise ValueError("Coordinates and attributions should have the same amount of points")
+    if np_orig_attr is not None and not isinstance(np_orig_attr, np.array):
+        raise TypeError("The points original attributions must be in numpy array format.")
+    if np_orig_attr.shape != np_attr.shape:
+        raise ValueError("The attributions and the original ones should have the same amount \
+            of points")
+    if not isinstance(template_name, str):
+        raise TypeError("'template_name' must be of str type.")
+    if not isinstance(size, float):
+        raise TypeError("'size' must be a float.")
 
-    np_attr = attributions.detach().cpu().numpy()
-    if original_attributions is not None:
-        np_orig_attr = original_attributions.detach().cpu().numpy()
-    else:
-        np_orig_attr = None
+    hover_data_names = ["Attr", "Point_Num"]
 
     hover = dict(X=np_coords[:, 0],
                  Y=np_coords[:, 1],
                  Z=np_coords[:, 2],
                  Attr=np_attr,
-                 Original_Attr=np_orig_attr,
                  Point_Num=[i for i in range(len(np_attr))])
+    
+    if (np_orig_attr is not None):
+        np_orig_attr = np_orig_attr.astype(np.int)
+        hover["Original_Attrs"] = np_orig_attr
+        hover_data_names.append("Original_Attrs")
 
     hover_df = pd.DataFrame(hover)
 
@@ -579,7 +604,7 @@ def explain_plotly(attributions: Tensor, coords: Tensor,
                         opacity=1.0,
                         range_color=[np.min(np_attr), np.max(np_attr)],
                         template='simple_white',
-                        hover_data=["Attr", "Original_Attr", "Point_Num"])
+                        hover_data=hover_data_names)
 
     for data in fig.data:
         data['marker']['size'] = size
@@ -592,27 +617,42 @@ def explain_plotly(attributions: Tensor, coords: Tensor,
     fig.show()
 
 
-def explain_k3d(attributions: Tensor, coords: Tensor, attribution_name=None, size: float = 0.05) -> None:
+def explain_k3d(np_attr: np.array, np_coords: np.array,
+                attribution_name: str = "attributions",
+                size: float = 0.05) -> None:
     """
     Plots the point cloud with its attributions values using K3D.
     It doesn't offer the exactly value of the attributions but its performance and scene
     understanding are better than Plotly's explanation.
 
     Args:
-        attributions (TensorOrTupleOfTensorsGeneric): attributions for each point.
-        coords (Tensor): Coordinates of each point.
-        attribution_name (str, optional): Name of the point data in the plot. Defaults to None.
-        size (float, optional): Size of the points to be rendered.
+        `np_attr` (numpy.array): Attributions for each point.
+
+        `np_coords` (numpy.array): Coordinates of each point.
+
+        `attribution_name` (str, optional): Name of the point data in the plot. Defaults to None.
+
+        `size` (float, optional): Size of the points to be rendered.
     """
 
-    if attribution_name is None:
-        attribution_name = "attributions"
+    # Types and shapes verifications
+    if not isinstance(np_attr, np.array):
+        raise TypeError("The points attributions must be in numpy array format.")
+    if not isinstance(np_coords, np.array):
+        raise TypeError("The points coordinates must be in numpy array format.")
+    if np_coords.shape[1] != 3:
+        raise ValueError("The points coordinates must in shape (X,3), where the three values \
+            correspond to the x, y and z coordinates of each point.")
+    if np_coords.shape[0] != np_attr.shape[0]:
+        raise ValueError("Coordinates and attributions should have the same amount of points")
+    if not isinstance(attribution_name, str):
+        raise TypeError("'attribute_name' must be of str type.")
+    if not isinstance(size, float):
+        raise TypeError("'size' must be a float.")
 
     fig = k3d.plot(grid_visible=False)
 
-    np_attr = attributions.detach().cpu().numpy()
-
-    fig += k3d.points(positions=coords,
+    fig += k3d.points(positions=np_coords,
                       shader='3d',
                       color_map=k3d.paraview_color_maps.Viridis_matplotlib,
                       attribution=np_attr,

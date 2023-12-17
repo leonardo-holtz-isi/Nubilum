@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 
 
-class InstanceWrappedModel(torch.nn.Module):
+class InstanceModelWrapper(torch.nn.Module):
     """
     This model wrapper is dedicated to be used in instance segmentation models.
     The forward function receives as additional forward arguments the ground truth
@@ -57,7 +57,7 @@ class InstanceWrappedModel(torch.nn.Module):
         return torch.sum(instance_scores, dim=0).reshape(1, -1)
 
 
-class PointWrappedModel(torch.nn.Module):
+class PointModelWrapper(torch.nn.Module):
     """
     Model wrapper dedicated to find attributions related to a unique point.
     It permits to understands what other points influence in the classification
@@ -93,7 +93,7 @@ class PointWrappedModel(torch.nn.Module):
         return scores[point_of_interest].reshape(1, -1)
 
 
-class SummarizedWrappedModel(torch.nn.Module):
+class SummarizedModelWrapper(torch.nn.Module):
     """
     Model wrapper dedicated to understand the prediction of the entire point cloud.
     Since attributions methods are made for classification tasks and not segmentation
