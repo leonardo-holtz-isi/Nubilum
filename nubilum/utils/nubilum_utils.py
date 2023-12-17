@@ -9,6 +9,7 @@ from captum._utils.typing import TensorOrTupleOfTensorsGeneric
 from k3d.colormaps import matplotlib_color_maps
 from matplotlib import pyplot
 import plotly.express as px
+import colorcet as cc
 import math
 
 import k3d
@@ -265,52 +266,101 @@ def show_point_cloud_classification_k3d(coords: Tensor, classifications: Tensor,
 
 def show_point_cloud_classification_plotly(coords: Tensor, classifications: Tensor,
                                            instance_labels: Tensor = None,
-                                           classes_dict: dict = None, size: float = 0.5) -> None:
+                                           classes_dict: dict = None, size: float = 0.5,
+                                           additional_hover_info: dict = None,
+                                           save_html: bool = False,
+                                           save_name: str = './default_fig.html') -> None:
     """
     Plots the classficiation of each point using Plotly.
     It can hold extra information such as instance labels and predictions meanings.
 
     Args:
-        coords (Tensor): Coordinates of the points, in the shape (N, 3)
-        classifications (Tensor): The predictions indices for each point
-        instance_labels (Tensor, optional): Object instance labels for each point.
+        `coords` (Tensor): Coordinates of the points, in the shape (N, 3).
+        
+        `classifications` (Tensor): The predictions indices for each point.
+        
+        `instance_labels` (Tensor, optional): Object instance labels for each point.
         The order of the points must be the same as the coordinates and classifications.
         Defaults to None.
-        classes_dict (dict, optional): Dictionary containing the meaning of each prediction index.
+        
+        `classes_dict` (dict, optional): Dictionary containing the meaning of each prediction index.
         Defaults to None.
-        size (float, optional): Points sizes in the plot. Defaults to 0.1.
+        
+        `size` (float, optional): Points sizes in the plot. Defaults to 0.5.
+        
+        `additional_hover_info` (dict, optional): Dictionary containing additional information
+        about the points. Each information must be in numpy or tensor format and with the same
+        size as the `classifications` parameter. Defaults to None.
+        
+        `save_html` (bool, optional): Should the plotly figure be saved in a html file for later
+        visualization. Defaults to False.
+        
+        `save_name` (str, optional): The name of the html file to be created if `save_html` is
+        True. Defaults to './default_fig.html'.
     """
 
+    # Transform the tensor data into numpy data
     np_coords = coords.cpu().detach().numpy()
     np_class = classifications.cpu().detach().numpy().astype(np.int)
 
-    if (instance_labels is not None):
-        instance_labels.cpu().detach().numpy().astype(np.int)
-
+    # Creates a dictionary to be transformed in a dataframe later.
+    # The dataframe is a better structure to be used in the plot function.
+    # This is called 'hover' because it is the hover data to be showed when the cursor
+    # is over a specific point.
+    hover_data_names = ["Class", "Point_Num"]
     hover = dict(X=np_coords[:, 0],
                  Y=np_coords[:, 1],
                  Z=np_coords[:, 2],
                  Class=[classes_dict[class_num] for class_num in np_class],
-                 Instance_Index=instance_labels,
                  Point_Num=[i for i in range(len(instance_labels))])
 
+    # Adds additional data to the dictionary according to the presence of optional data
+    if additional_hover_info is not None:
+        hover.update(additional_hover_info)
+        hover_data_names = hover_data_names + list(additional_hover_info.keys())
+
+    if (instance_labels is not None):
+        instance_labels = instance_labels.cpu().detach().numpy().astype(np.int)
+        hover["Instance_Index"] = instance_labels
+        hover_data_names.append("Instance_Index")
+
     hover_df = pd.DataFrame(hover)
+
+    # Plotly default color set for discrete sequence data is limited.
+    # Datasets that contains a great number of classes can't be represented
+    # by Plotly's default color set and repeated colors will be used to represent
+    # different classes. Colorcet lib contains a robust and diverse set of
+    # colors and it is used instead.
+    color_scale = []
+    for color in cc.glasbey_bw_minc_20_maxl_70:
+        hex_color = "#{:02X}{:02X}{:02X}".format(math.floor(color[0] * 255),
+                                                 math.floor(color[1] * 255),
+                                                 math.floor(color[2] * 255))
+        color_scale.append(hex_color)
 
     fig = px.scatter_3d(data_frame=hover_df,
                         x="X",
                         y="Y",
                         z="Z",
                         color="Class",
+                        color_discrete_sequence=color_scale,
                         opacity=1.0,
-                        hover_data=["Class", "Instance_Index", "Point_Num"])
+                        hover_data=hover_data_names)
 
     # Change size directly through here to avoid white outlines in the points
     for data in fig.data:
         data['marker']['size'] = size
+
     # The size change must not modify the legend
     fig.update_layout(legend= {'itemsizing': 'constant'})
+
     # Ensure that the rendering will be with the correct aspect (not flattened)
     fig.update_layout(scene_aspectmode='data')
+
+    # Saves the figure to a new html file
+    if save_html:
+        fig.write_html(save_name)
+
     fig.show()
 
 

@@ -15,6 +15,7 @@ setup(
         'pandas',
         'plotly',
         'k3d',
+        'colorcet',
         'captum'
     ]
 )
