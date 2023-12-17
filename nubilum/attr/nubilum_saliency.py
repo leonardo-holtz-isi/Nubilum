@@ -23,7 +23,7 @@ class NubilumSaliency(Saliency):
         Args:
             inputs (TensorOrTupleOfTensorsGeneric): The input tensors for which
             saliency is computed.
-            target (TargetType, optional): The target index in which the attributes
+            target (TargetType, optional): The target index in which the attributions
             will be computed . Defaults to None.
             abs (bool, optional): Returns absolute value of gradients if set to True,
             otherwise returns the (signed) gradients if False. Defaults to False.

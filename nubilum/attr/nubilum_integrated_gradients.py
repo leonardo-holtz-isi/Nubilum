@@ -31,7 +31,7 @@ class NubilumIntegratedGradients(IntegratedGradients):
             Baseline tensors. Baseline tensors shapes must be equal to the
             input tensors. Defaults to None.
             target (TargetType, optional): The target index in which the
-            attributes will be computed . Defaults to None.
+            attributions will be computed . Defaults to None.
             additional_forward_args (Any, optional): Additional arguments
             to pass to the forward function. Defaults to None.
             n_steps (int, optional): Number of steps for the integral

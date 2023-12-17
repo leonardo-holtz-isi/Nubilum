@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+# TODO: For now, the functions are mantaining an "look before you leap" (LBYL) pattern,
+# over the "it's easier to ask for forgiveness than permission" (EAFP) pattern.
+# This will be updated in a later version.
+
 from typing import Tuple
 import numpy as np
 import pandas as pd
@@ -16,7 +20,7 @@ import k3d
 
 __all__ = ['plotly_red_custom_colorscale', 'k3d_red_custom_colorscale',
            'create_k3d_category_20_discrete_map',
-           'check_tensor_shapes', 'show_poi', 'sum_point_attributes',
+           'check_tensor_shapes', 'show_poi', 'sum_point_attributions',
            'create_baseline_point_cloud', 'show_point_cloud',
            'show_point_cloud_classification_k3d', 'show_point_cloud_classification_plotly',
            'explain_plotly', 'explain_k3d']
@@ -63,7 +67,7 @@ def create_k3d_category_20_discrete_map():
     Unfortunately, K3D doesn't support discrete color scales.
 
     Returns:
-        A color scale to be used in some plots with numerical data.
+        `colorscale` (list): A color scale to be used in some plots with numerical data.
     """
 
     N = 20
@@ -81,14 +85,14 @@ def create_k3d_category_20_discrete_map():
 
 
 def check_tensor_shapes(tensors) -> bool:
-    """Checks if the tensors inside a iterable object, like a list or tuple,
-    have the same shape
+    """
+    Checks if the tensors inside a iterable object have the same shape
 
     Args:
-        tensors: Iterable object containing tensors.
+        `tensors`: Iterable object containing tensors.
 
     Returns:
-        bool: True if tensors have the same shape, False otherwise.
+        `tensor_shapes_ok` (bool): True if tensors have the same shape, False otherwise.
     """
 
     reference_shape = tensors[0].shape
@@ -100,16 +104,25 @@ def check_tensor_shapes(tensors) -> bool:
     return True
 
 
-def show_poi(poi_index: int, coords: Tensor) -> None:
+def show_poi(poi_index: int, np_coords: np.array) -> None:
     """
     Shows the point cloud with the point of interest in evidence
 
     Args:
-        poi_index (int): Index of the point of interest
-        coords (Tensor): Coordinates of each point.
+        `poi_index` (int): Index of the point of interest.
+        
+        `np_coords` (numpy.array): Coordinates of each point.
     """
 
-    np_coords = coords.detach().cpu().numpy()
+    # Types and shapes verifications
+    if not isinstance(np_coords, np.array):
+        raise TypeError("The points coordinates must be in numpy array format.")
+    if np_coords.shape[1] != 3:
+        raise ValueError("The points coordinates must in shape (X,3), where the three values \
+            correspond to the x, y and z coordinates of each point.")
+    if not isinstance(poi_index, int):
+        raise TypeError("Point of interest must be of type 'int'")
+
     num_points = np_coords.shape[0]
     colors = np.ones(num_points)
     colors[poi_index] = 0.0
@@ -119,46 +132,45 @@ def show_poi(poi_index: int, coords: Tensor) -> None:
     fig += k3d.points(positions=np_coords,
                       shader='3d',
                       color_map=matplotlib_color_maps.Coolwarm,
-                      attribute=colors,
+                      attribution=colors,
                       color_range=[0.0, 1.0],
                       point_sizes=[0.03 if color == 1.0 else 0.08 for color in colors],
                       name="Point of interest")
     fig.display()
 
 
-def sum_point_attributes(attributes: TensorOrTupleOfTensorsGeneric,
+def sum_point_attributions(attributions: TensorOrTupleOfTensorsGeneric,
                          target_dim: int = -1) -> Tensor:
     """
-    Performs an element-wise summation over the attributes, followed by a sum of the
+    Performs an element-wise summation over the attributions, followed by a sum of the
     elements in the target dimension in the resulted tensor.
 
     It's useful to aggregate attribution for any kind of point features.
 
     Args:
-        attributes (TensorOrTupleOfTensorsGeneric): Tuple of tensors that describes
-        each point attributes. The tensors must have the same shape.
-        target_dim (int, optional): Target dimension where the last sum will occour.
+        `attributions` (TensorOrTupleOfTensorsGeneric): Tuple of tensors that describes
+        each point attributions. The tensors must have the same shape.
+
+        `target_dim` (int, optional): Target dimension where the last sum will occour.
         Defaults to -1, the last dimension.
 
     Returns:
-        Tensor: Sum of all tensors element-wise and with the last dimension added.
+        `attributions_sum` (Tensor): Sum of all tensors element-wise and with the last dimension added.
     """
 
-    # TODO: Check if this is useless, since the type in the parameters probably already
-    # guarantees that 'attributes' is a tuple of tensors.
-    assert isinstance(attributes, tuple), \
-        "Parameter 'attributes' must be a tuple of tensors."
+    if not isinstance(attributions, TensorOrTupleOfTensorsGeneric):
+        raise TypeError("Parameter 'attributions' must be a tuple of tensors.")
 
-    assert len(attributes) > 0, \
-        "'attributes' tuple must contain at least one tensor."
+    if len(attributions) == 0:
+        raise ValueError("'attributions' tuple must contain at least one tensor.")
 
-    assert check_tensor_shapes(attributes), \
-        "Attributes must have the same shape."
+    if not check_tensor_shapes(attributions):
+        raise ValueError("attributions must have the same shape.")
 
-    assert len(attributes[0].shape) > 1, \
-        "Attributes shapes must have at least two dimensions."
+    if len(attributions[0].shape) == 0:
+        raise ValueError("attributions shapes must have at least two dimensions.")
 
-    return (stack(attributes).sum(dim=0)).sum(axis=target_dim)
+    return (stack(attributions).sum(dim=0)).sum(axis=target_dim)
 
 
 def create_baseline_point_cloud(input_coords: Tensor) -> Tuple[Tensor]:
@@ -170,12 +182,19 @@ def create_baseline_point_cloud(input_coords: Tensor) -> Tuple[Tensor]:
     we add the remaining points randomly trough the volume.
 
     Args:
-        input_coords (Tensor): Coordinates of the input in a size (N, 3).
+        `input_coords` (Tensor): Coordinates of the input in a size (N, 3).
 
     Returns:
-        tuple(Tensor): Tuple containing the coordinates of the baseline points
+        `baseline` (Tensor): Tuple containing the coordinates of the baseline points
         coordinates and its colors.
     """
+
+    # Types and shapes verifications
+    if not isinstance(input_coords, Tensor):
+        raise TypeError("The points coordinates must be in Tensor format.")
+    if input_coords.shape[1] != 3:
+        raise ValueError("The points coordinates must in shape (X,3), where the three values \
+            correspond to the x, y and z coordinates of each point.")
 
     # Retrieve the maximum and minimum bounds
     max_values, _ = torch.max(input_coords, dim=0)
@@ -215,29 +234,140 @@ def create_baseline_point_cloud(input_coords: Tensor) -> Tuple[Tensor]:
 
     return (baseline_coords, baseline_colors)
 
+
+def log_scale_attributions(attributions: np.array, signed: bool = False) -> np.array:
+    """
+    Apply a logarithmic scale over attributions.
+
+    Args:
+        `attributions` (numpy.array): Attribution values.
+
+        `signed` (bool, optional): Mantains the attributions signs after the scale if True.
+        Defaults to False.
+
+    Returns:
+        `log_attributions` (numpy.array): Scaled attributions
+    """
+
+    if not isinstance(attributions, np.array):
+        raise TypeError("'attributions' must be in numpy array format")
+    if not isinstance(signed, bool):
+        raise TypeError("'attributions' must be in numpy array format")
+
+    log_attr = np.log10(np.abs(attributions) + 1e-10)
+    if signed: # to verify the positive and negative contributions
+        signs = np.sign(attributions)
+        # Reverts the abs procedure done to calculate the log before
+        signed_log_attr = signs * (log_attr + abs(np.min(log_attr)))
+        return signed_log_attr
+    else:
+        return log_attr
+
+def log_scale_attr_zero_mask(attributions: np.array, signed: bool = False) -> np.array:
+    """
+    Apply a logarithmic scale over attributions.
+    Attributions with zero value are substituted with NaN values. This is useful to
+    plot attributions, since NaN values will have a gray color. Useful to check the
+    receptive field of a specific region.
+
+    Args:
+        `attributions` (np.array): Attribution values.
+
+        `signed` (bool, optional): Mantains the attributions signs after the scale if True.
+        Defaults to False.
+
+    Returns:
+        `log_attributions` (numpy.array): Scaled attributions with NaN values
+        where there is no attribution
+    """
+    
+    if not isinstance(attributions, np.array):
+        raise TypeError("'attributions' must be in numpy array format")
+    if not isinstance(signed, bool):
+        raise TypeError("'attributions' must be in numpy array format")
+
+    zero_mask = attributions == 0
+
+    # Apply the log scale to non-zero values
+    log_attr = np.log10(np.abs(attributions[~zero_mask]) + 1e-10)
+
+    # Verify the positive and negative contributions
+    if signed:
+        signs = np.sign(attributions)
+        signed_log_attr = signs * (log_attr_with_nan + abs(np.nanmin(log_attr_with_nan)))
+        log_attr = signed_log_attr
+
+    # Replace values equal to zero with NaN
+    log_attr_with_nan = np.empty_like(attributions, dtype=float)
+    log_attr_with_nan[zero_mask] = np.nan
+    log_attr_with_nan[~zero_mask] = log_attr
+
+    return log_attr_with_nan
+
+def join_attributions(np_attr1: np.array, np_attr2: np.array) -> np.array:
+    """
+    Execute an union of the maximum magnitudes from two attribution values.
+
+    Args:
+        `np_attr1` (np.array): First attributions values
+
+        `np_attr2` (np.array): Second attributions values
+
+    Returns:
+        `joined_attributes` (np.array): Union of the max magnitude values from both attributions.
+    """
+
+    if not isinstance(np_attr1, np.array):
+        raise TypeError("'np_attr1' must be in numpy array format.")
+    if not isinstance(np_attr2, np.array):
+        raise TypeError("'np_attr2' must be in numpy array format.")
+    if np_attr1.shape != np_attr1.shape:
+        raise ValueError("Both attributions must have the same shape.")
+
+    final_attr = []
+
+    # We need to execute an element-wise for-loop to mantain the signs
+    for i in range(len(np_attr1)):
+        if abs(np_attr1[i]) >= abs(np_attr2[i]):
+            final_attr.append(np_attr1[i])
+        else:
+            final_attr.append(np_attr2[i])
+    return np.array(final_attr)
+
+
 # Plot functions
 
-def show_point_cloud(coords: Tensor, colors: Tensor, size: float = 0.1) -> None:
+def show_point_cloud(np_coords: np.array, np_colors: np.array, size: float = 0.1) -> None:
     """
     Plots the Point Cloud using K3D plot library.
 
     Args:
-        coords (Tensor): Coordinates of the points, in the shape (N, 3)
-        colors (Tensor): Colors of the points, in the shape (N, 3). It assumes that the colors
-        are in the RGB format with interval [0, 255]
-        size (float, optional): Points size in the plot. Defaults to 0.1.
+        `np_coords` (numpy.array): Coordinates of the points, in the shape (N, 3)
+
+        `np_colors` (numpy.array): Colors of the points, in the shape (N, 3).
+        It assumes that the colors are in the RGB format with interval [0, 255]
+
+        `size` (float, optional): Points size in the plot. Defaults to 0.1.
     """
 
-    rgb = colors.cpu().detach().numpy().astype(np.uint32)
+    # Types and shapes verifications
+    if not isinstance(np_coords, np.array):
+        raise TypeError("The points coordinates must be in numpy array format.")
+    if np_coords.shape[1] != 3:
+        raise ValueError("The points coordinates must in shape (X,3), where the three values \
+            correspond to the x, y and z coordinates of each point.")
+    if not isinstance(size, float):
+        raise TypeError("'size' must be a float.")
+
+    rgb = np_colors.astype(np.uint32)
     colors_hex = (rgb[:, 0] << 16) + (rgb[:, 1] << 8) + (rgb[:, 2])
-    np_coords = coords.cpu().detach().numpy()
 
     plot = k3d.plot(grid_visible=False)
     plot += k3d.points(np_coords, colors_hex, point_size=size, shader="simple", name="Point Cloud")
     plot.display()
 
 
-def show_point_cloud_classification_k3d(coords: Tensor, classifications: Tensor,
+def show_point_cloud_classification_k3d(np_coords: np.array, np_class: np.array,
                                         size: float = 0.1) -> None:
     """
     Plots the classfication of each point using K3D.
@@ -247,16 +377,30 @@ def show_point_cloud_classification_k3d(coords: Tensor, classifications: Tensor,
     Recomended to use when plotly's performance spoils the 3D interaction.
 
     Args:
-        coords (Tensor): Coordinates of the points, in the shape (N, 3)
+        `np_coords` (numpy.array): Coordinates of the points, in the shape (N, 3)
+
+        `np_class` (numpy.array): The predictions indices for each point.
+
+        `size` (float, optional): Points sizes in the plot. Defaults to 0.1.
     """
 
-    np_coords = coords.cpu().detach().numpy()
-    np_class = classifications.cpu().detach().numpy()
+    # Types and shapes verifications
+    if not isinstance(np_coords, np.array):
+        raise TypeError("The points coordinates must be in numpy array format.")
+    if np_coords.shape[1] != 3:
+        raise ValueError("The points coordinates must in shape (X,3), where the three values \
+            correspond to the x, y and z coordinates of each point.")
+    if not isinstance(np_class, np.array):
+        raise TypeError("The points classifications must be in numpy array format.")
+    if np_coords.shape[0] != np_class.shape[0]:
+        raise ValueError("Coordinates and classifications should have the same amount of points")
+    if not isinstance(size, float):
+        raise TypeError("'size' must be a float.")
 
     plot = k3d.plot(grid_visible=False)
     plot += k3d.points(np_coords,
                        shader='flat',
-                       attribute=np_class,
+                       attribution=np_class,
                        point_size=size,
                        color_map=create_k3d_category_20_discrete_map(),
                        color_range=[np.min(np_class), np.max(np_class)],
@@ -264,8 +408,8 @@ def show_point_cloud_classification_k3d(coords: Tensor, classifications: Tensor,
     plot.display()
 
 
-def show_point_cloud_classification_plotly(coords: Tensor, classifications: Tensor,
-                                           instance_labels: Tensor = None,
+def show_point_cloud_classification_plotly(np_coords: np.array, np_class: np.array,
+                                           instance_labels: np.array = None,
                                            classes_dict: dict = None, size: float = 0.5,
                                            additional_hover_info: dict = None,
                                            save_html: bool = False,
@@ -275,33 +419,64 @@ def show_point_cloud_classification_plotly(coords: Tensor, classifications: Tens
     It can hold extra information such as instance labels and predictions meanings.
 
     Args:
-        `coords` (Tensor): Coordinates of the points, in the shape (N, 3).
-        
-        `classifications` (Tensor): The predictions indices for each point.
-        
-        `instance_labels` (Tensor, optional): Object instance labels for each point.
+        `np_coords` (numpy.array): Coordinates of the points, in the shape (N, 3).
+
+        `np_class` (numpy.array): The predictions indices for each point.
+
+        `instance_labels` (numpy.array, optional): Object instance labels for each point.
         The order of the points must be the same as the coordinates and classifications.
         Defaults to None.
-        
+
         `classes_dict` (dict, optional): Dictionary containing the meaning of each prediction index.
         Defaults to None.
-        
+
         `size` (float, optional): Points sizes in the plot. Defaults to 0.5.
-        
+
         `additional_hover_info` (dict, optional): Dictionary containing additional information
-        about the points. Each information must be in numpy or tensor format and with the same
-        size as the `classifications` parameter. Defaults to None.
-        
+        about the points. Each information must be in numpy format and with the same
+        size as the `np_class` parameter. Defaults to None.
+
         `save_html` (bool, optional): Should the plotly figure be saved in a html file for later
         visualization. Defaults to False.
-        
+
         `save_name` (str, optional): The name of the html file to be created if `save_html` is
         True. Defaults to './default_fig.html'.
     """
 
-    # Transform the tensor data into numpy data
-    np_coords = coords.cpu().detach().numpy()
-    np_class = classifications.cpu().detach().numpy().astype(np.int)
+    # Types and shapes verifications
+    if not isinstance(np_coords, np.array):
+        raise TypeError("The points coordinates must be in numpy array format.")
+    if np_coords.shape[1] != 3:
+        raise ValueError("The points coordinates must in shape (X,3), where the three values \
+            correspond to the x, y and z coordinates of each point.")
+    if not isinstance(np_class, np.array):
+        raise TypeError("The points classifications must be in numpy array format.")
+    if np_coords.shape[0] != np_class.shape[0]:
+        raise ValueError("Coordinates and classifications should have the same amount of points")
+    if instance_labels is not None and not isinstance(instance_labels, np.array):
+        raise TypeError("The points instance labels must be in numpy array format.")
+    if instance_labels is not None and instance_labels.shape != np_class.shape:
+        raise ValueError("'instance_labels' does not have the same shape as the classifications.")
+    if classes_dict is not None and not isinstance(classes_dict, dict):
+        raise TypeError("'classes_dict' must be a dictionary.")
+    if not isinstance(size, float):
+        raise TypeError("'size' must be a float.")
+    if additional_hover_info is not None and not isinstance(additional_hover_info, dict):
+        raise TypeError("'additional_hover_info' must be a dictionary.")
+    for i, info in enumerate(additional_hover_info):
+        if not isinstance(info, np.array):
+            raise TypeError("The {}th element from additional_hover_info must be in numpy \
+                array format.".format(i))
+        if info.shape != np_class.shape:
+            raise ValueError("The {}th element from additional_hover_info does not \
+            have the same shape as the classifications.".format(i))
+    if not isinstance(save_html, bool):
+        raise TypeError("'save_html' must be a bool.")
+    if not isinstance(save_name, bool):
+        raise TypeError("'save_name' must be a str.")
+
+    # Ensure int type for the classifications
+    np_class = np_class.astype(np.int)
 
     # Creates a dictionary to be transformed in a dataframe later.
     # The dataframe is a better structure to be used in the plot function.
@@ -364,17 +539,17 @@ def show_point_cloud_classification_plotly(coords: Tensor, classifications: Tens
     fig.show()
 
 
-def explain_plotly(attributes: Tensor, coords: Tensor,
-                   original_attributes: Tensor = None,
+def explain_plotly(attributions: Tensor, coords: Tensor,
+                   original_attributions: Tensor = None,
                    template_name: str = 'simple_white',
                    size: float = 1.5) -> None:
     """
-    Plots the point cloud with its attributes values using Plotly.
-    Useful for an thorough analysis of the points attribute values, but it has a poor interaction
+    Plots the point cloud with its attributions values using Plotly.
+    Useful for an thorough analysis of the points attribution values, but it has a poor interaction
     and scene understanding thanks to Plotly's point rendering.
 
     Args:
-        attributes (TensorOrTupleOfTensorsGeneric): Attributes for each point.
+        attributions (TensorOrTupleOfTensorsGeneric): attributions for each point.
         coords (Tensor): Coordinates of each point.
         template_name (str, optional): The template style to be used for the plot.
         Defaults to 'simple_white'.
@@ -383,9 +558,9 @@ def explain_plotly(attributes: Tensor, coords: Tensor,
 
     np_coords = coords.detach().cpu().numpy()
 
-    np_attr = attributes.detach().cpu().numpy()
-    if original_attributes is not None:
-        np_orig_attr = original_attributes.detach().cpu().numpy()
+    np_attr = attributions.detach().cpu().numpy()
+    if original_attributions is not None:
+        np_orig_attr = original_attributions.detach().cpu().numpy()
     else:
         np_orig_attr = None
 
@@ -417,31 +592,31 @@ def explain_plotly(attributes: Tensor, coords: Tensor,
     fig.show()
 
 
-def explain_k3d(attributes: Tensor, coords: Tensor, attribute_name=None, size: float = 0.05) -> None:
+def explain_k3d(attributions: Tensor, coords: Tensor, attribution_name=None, size: float = 0.05) -> None:
     """
-    Plots the point cloud with its attributes values using K3D.
-    It doesn't offer the exactly value of the attributes but its performance and scene
+    Plots the point cloud with its attributions values using K3D.
+    It doesn't offer the exactly value of the attributions but its performance and scene
     understanding are better than Plotly's explanation.
 
     Args:
-        attributes (TensorOrTupleOfTensorsGeneric): Attributes for each point.
+        attributions (TensorOrTupleOfTensorsGeneric): attributions for each point.
         coords (Tensor): Coordinates of each point.
-        attribute_name (str, optional): Name of the point data in the plot. Defaults to None.
+        attribution_name (str, optional): Name of the point data in the plot. Defaults to None.
         size (float, optional): Size of the points to be rendered.
     """
 
-    if attribute_name is None:
-        attribute_name = "Attributes"
+    if attribution_name is None:
+        attribution_name = "attributions"
 
     fig = k3d.plot(grid_visible=False)
 
-    np_attr = attributes.detach().cpu().numpy()
+    np_attr = attributions.detach().cpu().numpy()
 
     fig += k3d.points(positions=coords,
                       shader='3d',
                       color_map=k3d.paraview_color_maps.Viridis_matplotlib,
-                      attribute=np_attr,
+                      attribution=np_attr,
                       color_range=[np.min(np_attr), np.max(np_attr)],
                       point_size=size,
-                      name=attribute_name)
+                      name=attribution_name)
     fig.display()

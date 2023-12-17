@@ -9,7 +9,7 @@ class InstanceWrappedModel(torch.nn.Module):
     This model wrapper is dedicated to be used in instance segmentation models.
     The forward function receives as additional forward arguments the ground truth
     instances labels and one specific instance label.
-    Any attribute function executed using this wrapped model will calculate attributes over
+    Any attribution function executed using this wrapped model will calculate attributions over
     the points that have its ground truth instance label equal to the label of interest.
     The idea is to understand how the model classify the individual objects in the scene,
     checking which points contribute with the result and how the group of points of the
@@ -59,7 +59,7 @@ class InstanceWrappedModel(torch.nn.Module):
 
 class PointWrappedModel(torch.nn.Module):
     """
-    Model wrapper dedicated to find attributes related to a unique point.
+    Model wrapper dedicated to find attributions related to a unique point.
     It permits to understands what other points influence in the classification
     of a point of interest.
     """
