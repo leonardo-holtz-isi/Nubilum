@@ -104,7 +104,7 @@ def check_tensor_shapes(tensors) -> bool:
     return True
 
 
-def show_poi(poi_index: int, np_coords: np.array) -> None:
+def show_poi(poi_index: int, np_coords: np.ndarray) -> None:
     """
     Shows the point cloud with the point of interest in evidence
 
@@ -115,7 +115,7 @@ def show_poi(poi_index: int, np_coords: np.array) -> None:
     """
 
     # Types and shapes verifications
-    if not isinstance(np_coords, np.array):
+    if not isinstance(np_coords, np.ndarray):
         raise TypeError("The points coordinates must be in numpy array format.")
     if np_coords.shape[1] != 3:
         raise ValueError("The points coordinates must in shape (X,3), where the three values \
@@ -236,7 +236,7 @@ def create_baseline_point_cloud(input_coords: Tensor) -> Tuple[Tensor]:
     return (baseline_coords, baseline_colors)
 
 
-def log_scale_attributions(attributions: np.array, signed: bool = False) -> np.array:
+def log_scale_attributions(attributions: np.ndarray, signed: bool = False) -> np.ndarray:
     """
     Apply a logarithmic scale over attributions.
 
@@ -250,7 +250,7 @@ def log_scale_attributions(attributions: np.array, signed: bool = False) -> np.a
         `log_attributions` (numpy.array): Scaled attributions
     """
 
-    if not isinstance(attributions, np.array):
+    if not isinstance(attributions, np.ndarray):
         raise TypeError("'attributions' must be in numpy array format")
     if not isinstance(signed, bool):
         raise TypeError("'attributions' must be in numpy array format")
@@ -264,7 +264,7 @@ def log_scale_attributions(attributions: np.array, signed: bool = False) -> np.a
     else:
         return log_attr
 
-def log_scale_attr_zero_mask(attributions: np.array, signed: bool = False) -> np.array:
+def log_scale_attr_zero_mask(attributions: np.ndarray, signed: bool = False) -> np.ndarray:
     """
     Apply a logarithmic scale over attributions.
     Attributions with zero value are substituted with NaN values. This is useful to
@@ -272,7 +272,7 @@ def log_scale_attr_zero_mask(attributions: np.array, signed: bool = False) -> np
     receptive field of a specific region.
 
     Args:
-        `attributions` (np.array): Attribution values.
+        `attributions` (np.ndarray): Attribution values.
 
         `signed` (bool, optional): Mantains the attributions signs after the scale if True.
         Defaults to False.
@@ -282,7 +282,7 @@ def log_scale_attr_zero_mask(attributions: np.array, signed: bool = False) -> np
         where there is no attribution
     """
     
-    if not isinstance(attributions, np.array):
+    if not isinstance(attributions, np.ndarray):
         raise TypeError("'attributions' must be in numpy array format")
     if not isinstance(signed, bool):
         raise TypeError("'attributions' must be in numpy array format")
@@ -305,22 +305,22 @@ def log_scale_attr_zero_mask(attributions: np.array, signed: bool = False) -> np
 
     return log_attr_with_nan
 
-def join_attributions(np_attr1: np.array, np_attr2: np.array) -> np.array:
+def join_attributions(np_attr1: np.ndarray, np_attr2: np.ndarray) -> np.ndarray:
     """
     Execute an union of the maximum magnitudes from two attribution values.
 
     Args:
-        `np_attr1` (np.array): First attributions values
+        `np_attr1` (np.ndarray): First attributions values
 
-        `np_attr2` (np.array): Second attributions values
+        `np_attr2` (np.ndarray): Second attributions values
 
     Returns:
-        `joined_attributes` (np.array): Union of the max magnitude values from both attributions.
+        `joined_attributes` (np.ndarray): Union of the max magnitude values from both attributions.
     """
 
-    if not isinstance(np_attr1, np.array):
+    if not isinstance(np_attr1, np.ndarray):
         raise TypeError("'np_attr1' must be in numpy array format.")
-    if not isinstance(np_attr2, np.array):
+    if not isinstance(np_attr2, np.ndarray):
         raise TypeError("'np_attr2' must be in numpy array format.")
     if np_attr1.shape != np_attr1.shape:
         raise ValueError("Both attributions must have the same shape.")
@@ -338,7 +338,7 @@ def join_attributions(np_attr1: np.array, np_attr2: np.array) -> np.array:
 
 # Plot functions
 
-def show_point_cloud(np_coords: np.array, np_colors: np.array, size: float = 0.1) -> None:
+def show_point_cloud(np_coords: np.ndarray, np_colors: np.ndarray, size: float = 0.1) -> None:
     """
     Plots the Point Cloud using K3D plot library.
 
@@ -352,7 +352,7 @@ def show_point_cloud(np_coords: np.array, np_colors: np.array, size: float = 0.1
     """
 
     # Types and shapes verifications
-    if not isinstance(np_coords, np.array):
+    if not isinstance(np_coords, np.ndarray):
         raise TypeError("The points coordinates must be in numpy array format.")
     if np_coords.shape[1] != 3:
         raise ValueError("The points coordinates must in shape (X,3), where the three values \
@@ -368,7 +368,7 @@ def show_point_cloud(np_coords: np.array, np_colors: np.array, size: float = 0.1
     plot.display()
 
 
-def show_point_cloud_classification_k3d(np_coords: np.array, np_class: np.array,
+def show_point_cloud_classification_k3d(np_coords: np.ndarray, np_class: np.ndarray,
                                         size: float = 0.1) -> None:
     """
     Plots the classfication of each point using K3D.
@@ -386,12 +386,12 @@ def show_point_cloud_classification_k3d(np_coords: np.array, np_class: np.array,
     """
 
     # Types and shapes verifications
-    if not isinstance(np_coords, np.array):
+    if not isinstance(np_coords, np.ndarray):
         raise TypeError("The points coordinates must be in numpy array format.")
     if np_coords.shape[1] != 3:
         raise ValueError("The points coordinates must in shape (X,3), where the three values \
             correspond to the x, y and z coordinates of each point.")
-    if not isinstance(np_class, np.array):
+    if not isinstance(np_class, np.ndarray):
         raise TypeError("The points classifications must be in numpy array format.")
     if np_coords.shape[0] != np_class.shape[0]:
         raise ValueError("Coordinates and classifications should have the same amount of points")
@@ -409,8 +409,8 @@ def show_point_cloud_classification_k3d(np_coords: np.array, np_class: np.array,
     plot.display()
 
 
-def show_point_cloud_classification_plotly(np_coords: np.array, np_class: np.array,
-                                           instance_labels: np.array = None,
+def show_point_cloud_classification_plotly(np_coords: np.ndarray, np_class: np.ndarray,
+                                           instance_labels: np.ndarray = None,
                                            classes_dict: dict = None, size: float = 0.5,
                                            additional_hover_info: dict = None,
                                            save_html: bool = False,
@@ -445,16 +445,16 @@ def show_point_cloud_classification_plotly(np_coords: np.array, np_class: np.arr
     """
 
     # Types and shapes verifications
-    if not isinstance(np_coords, np.array):
+    if not isinstance(np_coords, np.ndarray):
         raise TypeError("The points coordinates must be in numpy array format.")
     if np_coords.shape[1] != 3:
         raise ValueError("The points coordinates must in shape (X,3), where the three values \
             correspond to the x, y and z coordinates of each point.")
-    if not isinstance(np_class, np.array):
+    if not isinstance(np_class, np.ndarray):
         raise TypeError("The points classifications must be in numpy array format.")
     if np_coords.shape[0] != np_class.shape[0]:
         raise ValueError("Coordinates and classifications should have the same amount of points")
-    if instance_labels is not None and not isinstance(instance_labels, np.array):
+    if instance_labels is not None and not isinstance(instance_labels, np.ndarray):
         raise TypeError("The points instance labels must be in numpy array format.")
     if instance_labels is not None and instance_labels.shape != np_class.shape:
         raise ValueError("'instance_labels' does not have the same shape as the classifications.")
@@ -465,7 +465,7 @@ def show_point_cloud_classification_plotly(np_coords: np.array, np_class: np.arr
     if additional_hover_info is not None and not isinstance(additional_hover_info, dict):
         raise TypeError("'additional_hover_info' must be a dictionary.")
     for i, info in enumerate(additional_hover_info):
-        if not isinstance(info, np.array):
+        if not isinstance(info, np.ndarray):
             raise TypeError("The {}th element from additional_hover_info must be in numpy \
                 array format.".format(i))
         if info.shape != np_class.shape:
@@ -540,8 +540,8 @@ def show_point_cloud_classification_plotly(np_coords: np.array, np_class: np.arr
     fig.show()
 
 
-def explain_plotly(np_attr: np.array, np_coords: np.array,
-                   np_orig_attr: np.array = None,
+def explain_plotly(np_attr: np.ndarray, np_coords: np.ndarray,
+                   np_orig_attr: np.ndarray = None,
                    template_name: str = 'simple_white',
                    size: float = 1.5) -> None:
     """
@@ -564,16 +564,16 @@ def explain_plotly(np_attr: np.array, np_coords: np.array,
     """
 
     # Types and shapes verifications
-    if not isinstance(np_attr, np.array):
+    if not isinstance(np_attr, np.ndarray):
         raise TypeError("The points attributions must be in numpy array format.")
-    if not isinstance(np_coords, np.array):
+    if not isinstance(np_coords, np.ndarray):
         raise TypeError("The points coordinates must be in numpy array format.")
     if np_coords.shape[1] != 3:
         raise ValueError("The points coordinates must in shape (X,3), where the three values \
             correspond to the x, y and z coordinates of each point.")
     if np_coords.shape[0] != np_attr.shape[0]:
         raise ValueError("Coordinates and attributions should have the same amount of points")
-    if np_orig_attr is not None and not isinstance(np_orig_attr, np.array):
+    if np_orig_attr is not None and not isinstance(np_orig_attr, np.ndarray):
         raise TypeError("The points original attributions must be in numpy array format.")
     if np_orig_attr.shape != np_attr.shape:
         raise ValueError("The attributions and the original ones should have the same amount \
@@ -617,7 +617,7 @@ def explain_plotly(np_attr: np.array, np_coords: np.array,
     fig.show()
 
 
-def explain_k3d(np_attr: np.array, np_coords: np.array,
+def explain_k3d(np_attr: np.ndarray, np_coords: np.ndarray,
                 attribution_name: str = "attributions",
                 size: float = 0.05) -> None:
     """
@@ -636,9 +636,9 @@ def explain_k3d(np_attr: np.array, np_coords: np.array,
     """
 
     # Types and shapes verifications
-    if not isinstance(np_attr, np.array):
+    if not isinstance(np_attr, np.ndarray):
         raise TypeError("The points attributions must be in numpy array format.")
-    if not isinstance(np_coords, np.array):
+    if not isinstance(np_coords, np.ndarray):
         raise TypeError("The points coordinates must be in numpy array format.")
     if np_coords.shape[1] != 3:
         raise ValueError("The points coordinates must in shape (X,3), where the three values \
