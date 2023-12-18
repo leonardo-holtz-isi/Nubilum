@@ -159,7 +159,7 @@ def sum_point_attributions(attributions: TensorOrTupleOfTensorsGeneric,
         dimension added.
     """
 
-    if not isinstance(attributions, TensorOrTupleOfTensorsGeneric):
+    if not isinstance(attributions, tuple):
         raise TypeError("Parameter 'attributions' must be a tuple of tensors.")
 
     if len(attributions) == 0:
@@ -462,18 +462,19 @@ def show_point_cloud_classification_plotly(np_coords: np.ndarray, np_class: np.n
         raise TypeError("'classes_dict' must be a dictionary.")
     if not isinstance(size, float):
         raise TypeError("'size' must be a float.")
-    if additional_hover_info is not None and not isinstance(additional_hover_info, dict):
-        raise TypeError("'additional_hover_info' must be a dictionary.")
-    for i, info in enumerate(additional_hover_info):
-        if not isinstance(info, np.ndarray):
-            raise TypeError("The {}th element from additional_hover_info must be in numpy \
-                array format.".format(i))
-        if info.shape != np_class.shape:
-            raise ValueError("The {}th element from additional_hover_info does not \
-            have the same shape as the classifications.".format(i))
+    if additional_hover_info is not None:
+        if not isinstance(additional_hover_info, dict):
+            raise TypeError("'additional_hover_info' must be a dictionary.")
+        for i, info in enumerate(additional_hover_info):
+            if not isinstance(info, np.ndarray):
+                raise TypeError("The {}th element from additional_hover_info must be in numpy \
+                    array format.".format(i))
+            if info.shape != np_class.shape:
+                raise ValueError("The {}th element from additional_hover_info does not \
+                have the same shape as the classifications.".format(i))
     if not isinstance(save_html, bool):
         raise TypeError("'save_html' must be a bool.")
-    if not isinstance(save_name, bool):
+    if not isinstance(save_name, str):
         raise TypeError("'save_name' must be a str.")
 
     # Ensure int type for the classifications
@@ -573,11 +574,12 @@ def explain_plotly(np_attr: np.ndarray, np_coords: np.ndarray,
             correspond to the x, y and z coordinates of each point.")
     if np_coords.shape[0] != np_attr.shape[0]:
         raise ValueError("Coordinates and attributions should have the same amount of points")
-    if np_orig_attr is not None and not isinstance(np_orig_attr, np.ndarray):
-        raise TypeError("The points original attributions must be in numpy array format.")
-    if np_orig_attr.shape != np_attr.shape:
-        raise ValueError("The attributions and the original ones should have the same amount \
-            of points")
+    if np_orig_attr is not None:
+        if not isinstance(np_orig_attr, np.ndarray):
+            raise TypeError("The points original attributions must be in numpy array format.")
+        if np_orig_attr.shape != np_attr.shape:
+            raise ValueError("The attributions and the original ones should have the same amount \
+                of points")
     if not isinstance(template_name, str):
         raise TypeError("'template_name' must be of str type.")
     if not isinstance(size, float):
@@ -592,7 +594,6 @@ def explain_plotly(np_attr: np.ndarray, np_coords: np.ndarray,
                  Point_Num=[i for i in range(len(np_attr))])
     
     if (np_orig_attr is not None):
-        np_orig_attr = np_orig_attr.astype(np.int)
         hover["Original_Attrs"] = np_orig_attr
         hover_data_names.append("Original_Attrs")
 
@@ -630,7 +631,8 @@ def explain_k3d(np_attr: np.ndarray, np_coords: np.ndarray,
 
         `np_coords` (numpy.array): Coordinates of each point.
 
-        `attribution_name` (str, optional): Name of the point data in the plot. Defaults to None.
+        `attribution_name` (str, optional): Name of the point data in the plot.
+        Defaults to 'attributions'.
 
         `size` (float, optional): Size of the points to be rendered.
     """
