@@ -4,7 +4,7 @@
 # over the "it's easier to ask for forgiveness than permission" (EAFP) pattern.
 # This will be updated in a later version.
 
-from typing import Tuple
+from typing import Tuple, Union
 import numpy as np
 import pandas as pd
 import torch
@@ -111,7 +111,7 @@ def show_poi(poi_index: int, np_coords: np.ndarray) -> None:
     Args:
         `poi_index` (int): Index of the point of interest.
         
-        `np_coords` (numpy.array): Coordinates of each point.
+        `np_coords` (numpy.ndarray): Coordinates of each point.
     """
 
     # Types and shapes verifications
@@ -241,13 +241,13 @@ def log_scale_attributions(attributions: np.ndarray, signed: bool = False) -> np
     Apply a logarithmic scale over attributions.
 
     Args:
-        `attributions` (numpy.array): Attribution values.
+        `attributions` (numpy.ndarray): Attribution values.
 
         `signed` (bool, optional): Mantains the attributions signs after the scale if True.
         Defaults to False.
 
     Returns:
-        `log_attributions` (numpy.array): Scaled attributions
+        `log_attributions` (numpy.ndarray): Scaled attributions
     """
 
     if not isinstance(attributions, np.ndarray):
@@ -343,9 +343,9 @@ def show_point_cloud(np_coords: np.ndarray, np_colors: np.ndarray, size: float =
     Plots the Point Cloud using K3D plot library.
 
     Args:
-        `np_coords` (numpy.array): Coordinates of the points, in the shape (N, 3)
+        `np_coords` (numpy.ndarray): Coordinates of the points, in the shape (N, 3)
 
-        `np_colors` (numpy.array): Colors of the points, in the shape (N, 3).
+        `np_colors` (numpy.ndarray): Colors of the points, in the shape (N, 3).
         It assumes that the colors are in the RGB format with interval [0, 255]
 
         `size` (float, optional): Points size in the plot. Defaults to 0.1.
@@ -378,9 +378,9 @@ def show_point_cloud_classification_k3d(np_coords: np.ndarray, np_class: np.ndar
     Recomended to use when plotly's performance spoils the 3D interaction.
 
     Args:
-        `np_coords` (numpy.array): Coordinates of the points, in the shape (N, 3)
+        `np_coords` (numpy.ndarray): Coordinates of the points, in the shape (N, 3)
 
-        `np_class` (numpy.array): The predictions indices for each point.
+        `np_class` (numpy.ndarray): The predictions indices for each point.
 
         `size` (float, optional): Points sizes in the plot. Defaults to 0.1.
     """
@@ -411,7 +411,8 @@ def show_point_cloud_classification_k3d(np_coords: np.ndarray, np_class: np.ndar
 
 def show_point_cloud_classification_plotly(np_coords: np.ndarray, np_class: np.ndarray,
                                            instance_labels: np.ndarray = None,
-                                           classes_dict: dict = None, size: float = 0.5,
+                                           possible_classes: Union[dict, list] = None,
+                                           size: float = 0.5,
                                            additional_hover_info: dict = None,
                                            save_html: bool = False,
                                            save_name: str = './default_fig.html') -> None:
@@ -420,16 +421,16 @@ def show_point_cloud_classification_plotly(np_coords: np.ndarray, np_class: np.n
     It can hold extra information such as instance labels and predictions meanings.
 
     Args:
-        `np_coords` (numpy.array): Coordinates of the points, in the shape (N, 3).
+        `np_coords` (numpy.ndarray): Coordinates of the points, in the shape (N, 3).
 
-        `np_class` (numpy.array): The predictions indices for each point.
+        `np_class` (numpy.ndarray): The predictions indices for each point.
 
-        `instance_labels` (numpy.array, optional): Object instance labels for each point.
+        `instance_labels` (numpy.ndarray, optional): Object instance labels for each point.
         The order of the points must be the same as the coordinates and classifications.
         Defaults to None.
 
-        `classes_dict` (dict, optional): Dictionary containing the meaning of each prediction index.
-        Defaults to None.
+        `classes_dict` (dict | list, optional): Dictionary or list containing the meaning of each
+        prediction index. If in dictionary form, expects keys to be indices. Defaults to None.
 
         `size` (float, optional): Points sizes in the plot. Defaults to 0.5.
 
@@ -458,14 +459,14 @@ def show_point_cloud_classification_plotly(np_coords: np.ndarray, np_class: np.n
         raise TypeError("The points instance labels must be in numpy array format.")
     if instance_labels is not None and instance_labels.shape != np_class.shape:
         raise ValueError("'instance_labels' does not have the same shape as the classifications.")
-    if classes_dict is not None and not isinstance(classes_dict, dict):
-        raise TypeError("'classes_dict' must be a dictionary.")
+    if possible_classes is not None and not isinstance(possible_classes, Union[dict, list]):
+        raise TypeError("'possible_classes' must be a dictionary or list.")
     if not isinstance(size, float):
         raise TypeError("'size' must be a float.")
     if additional_hover_info is not None:
         if not isinstance(additional_hover_info, dict):
             raise TypeError("'additional_hover_info' must be a dictionary.")
-        for i, info in enumerate(additional_hover_info):
+        for i, info in enumerate(additional_hover_info.values()):
             if not isinstance(info, np.ndarray):
                 raise TypeError("The {}th element from additional_hover_info must be in numpy \
                     array format.".format(i))
@@ -485,10 +486,17 @@ def show_point_cloud_classification_plotly(np_coords: np.ndarray, np_class: np.n
     # This is called 'hover' because it is the hover data to be showed when the cursor
     # is over a specific point.
     hover_data_names = ["Class", "Point_Num"]
+
+    # Define if the class values in hover will have the indices of the classes, or their names.
+    if possible_classes is not None:
+        classes = [possible_classes[class_num] for class_num in np_class]
+    else:
+        classes = np_class
+
     hover = dict(X=np_coords[:, 0],
                  Y=np_coords[:, 1],
                  Z=np_coords[:, 2],
-                 Class=[classes_dict[class_num] for class_num in np_class],
+                 Class=classes,
                  Point_Num=[i for i in range(len(instance_labels))])
 
     # Adds additional data to the dictionary according to the presence of optional data
@@ -551,11 +559,11 @@ def explain_plotly(np_attr: np.ndarray, np_coords: np.ndarray,
     and scene understanding thanks to Plotly's point rendering.
 
     Args:
-        `np_attr` (numpy.array): Attributions for each point.
+        `np_attr` (numpy.ndrray): Attributions for each point.
 
-        `np_coords` (numpy.array): Coordinates of each point.
+        `np_coords` (numpy.ndarray): Coordinates of each point.
         
-        `np_orig_attr` (numpy.array): Original attributions for each point, useful if modifications
+        `np_orig_attr` (numpy.ndarray): Original attributions for each point, useful if modifications
         were made into them, but is desirable to have them in the hover information.
 
         `template_name` (str, optional): The template style to be used for the plot.
@@ -627,9 +635,9 @@ def explain_k3d(np_attr: np.ndarray, np_coords: np.ndarray,
     understanding are better than Plotly's explanation.
 
     Args:
-        `np_attr` (numpy.array): Attributions for each point.
+        `np_attr` (numpy.ndarray): Attributions for each point.
 
-        `np_coords` (numpy.array): Coordinates of each point.
+        `np_coords` (numpy.ndarray): Coordinates of each point.
 
         `attribution_name` (str, optional): Name of the point data in the plot.
         Defaults to 'attributions'.
@@ -657,7 +665,7 @@ def explain_k3d(np_attr: np.ndarray, np_coords: np.ndarray,
     fig += k3d.points(positions=np_coords,
                       shader='3d',
                       color_map=k3d.paraview_color_maps.Viridis_matplotlib,
-                      attribution=np_attr,
+                      attribute=np_attr,
                       color_range=[np.min(np_attr), np.max(np_attr)],
                       point_size=size,
                       name=attribution_name)
