@@ -20,8 +20,7 @@ class InstanceModelWrapper(torch.nn.Module):
         self.model = model
 
     def forward(self,
-                point_coords: Tensor,
-                point_colors: Tensor,
+                input: Tensor,
                 instance_labels: Tensor,
                 label_of_interest: int,
                 output_scores_key_name: str = None) -> Tensor:
@@ -45,7 +44,10 @@ class InstanceModelWrapper(torch.nn.Module):
             Tensor: A tensor with the logits of the instance points for each class.
         """
 
-        output = self.model(point_coords, point_colors)
+        if isinstance(input, tuple):
+            output = self.model(**input)
+        else:
+            output = self.model(input)
         instance_mask = instance_labels == label_of_interest
 
         if output_scores_key_name is not None:
@@ -67,7 +69,7 @@ class PointModelWrapper(torch.nn.Module):
         super().__init__()
         self.model = model
 
-    def forward(self, point_coords: Tensor, point_colors: Tensor,
+    def forward(self, input: Tensor,
                 point_of_interest: int, output_scores_key_name: str = None) -> Tensor:
         """
         Calculates the logits of only one point, for each class.
@@ -83,7 +85,10 @@ class PointModelWrapper(torch.nn.Module):
         Returns:
             Tensor: A tensor with the logits of the point of interest for each class.
         """
-        output = self.model(point_coords, point_colors)
+        if isinstance(input, tuple):
+            output = self.model(**input)
+        else:
+            output = self.model(input)
 
         if output_scores_key_name is not None:
             scores = output[output_scores_key_name]
@@ -106,7 +111,7 @@ class SummarizedModelWrapper(torch.nn.Module):
         super().__init__()
         self.model = model
 
-    def forward(self, point_coords: Tensor, point_colors: Tensor,
+    def forward(self, input: Tensor,
                 output_scores_key_name: str = None) -> Tensor:
         """
         Sums the logits of each class. The logit of the ith class of a point j is
@@ -123,7 +128,10 @@ class SummarizedModelWrapper(torch.nn.Module):
         Returns:
             Tensor: A tensor with a sum of all predicted logits for each class.
         """
-        output = self.model(point_coords, point_colors)
+        if isinstance(input, tuple):
+            output = self.model(**input)
+        else:
+            output = self.model(input)
 
         if output_scores_key_name is not None:
             scores = output[output_scores_key_name]
