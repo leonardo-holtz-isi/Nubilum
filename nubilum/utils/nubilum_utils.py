@@ -459,7 +459,7 @@ def show_point_cloud_classification_plotly(np_coords: np.ndarray, np_class: np.n
         raise TypeError("The points instance labels must be in numpy array format.")
     if instance_labels is not None and instance_labels.shape != np_class.shape:
         raise ValueError("'instance_labels' does not have the same shape as the classifications.")
-    if possible_classes is not None and not isinstance(possible_classes, Union[dict, list]):
+    if possible_classes is not None and not (isinstance(possible_classes, dict) or isinstance(possible_classes, list)):
         raise TypeError("'possible_classes' must be a dictionary or list.")
     if not isinstance(size, float):
         raise TypeError("'size' must be a float.")
@@ -487,8 +487,10 @@ def show_point_cloud_classification_plotly(np_coords: np.ndarray, np_class: np.n
     # is over a specific point.
     hover_data_names = ["Class", "Point_Num"]
 
-    # Define if the class values in hover will have the indices of the classes, or their names.
+    # Defines if the class values in hover will have the indices of the classes, or their names.
     if possible_classes is not None:
+        if isinstance(possible_classes, dict):
+            possible_classes = list(possible_classes.values())
         classes = [possible_classes[class_num] for class_num in np_class]
     else:
         classes = np_class
